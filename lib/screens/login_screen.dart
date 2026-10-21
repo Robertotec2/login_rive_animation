@@ -19,6 +19,25 @@ class _LoginScreenState extends State<LoginScreen> {
   SMITrigger? _trigFail;
   SMINumber? _numLook;
 
+  final _emailFocus = FocusNode();
+  final _passwordFocus = FocusNode();
+
+
+@override
+  void initState() {
+
+    super.initState();
+    _emailFocus.addListener(() {
+      if (_emailFocus.hasFocus){
+        if (_isHandsUp != null){
+          _isHandsUp?.change(false);
+          }
+      }
+  });
+    _passwordFocus.addListener(() {
+      _isHandsUp?.change(_passwordFocus.hasFocus);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +77,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(height: 10,),
                 //Email
                 TextField(
+                  focusNode: _emailFocus,
                   onChanged: (value) {
                     if(_isHandsUp != null){
                       _isHandsUp!.change(false);
