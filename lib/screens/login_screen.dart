@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:rive/rive.dart';
+import 'dart:async';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,6 +20,8 @@ class _LoginScreenState extends State<LoginScreen> {
   SMITrigger? _trigFail;
   SMINumber? _numLook;
 
+  Timer? _typingDebounce;
+
   final _emailFocus = FocusNode();
   final _passwordFocus = FocusNode();
 
@@ -31,7 +34,8 @@ class _LoginScreenState extends State<LoginScreen> {
       if (_emailFocus.hasFocus){
         if (_isHandsUp != null){
           _isHandsUp?.change(false);
-          }
+          _numLook?.value = 50.0;
+        }
       }
   });
     _passwordFocus.addListener(() {
@@ -85,6 +89,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     if(_isChecking == null) return;
                     _isChecking!.change(true);
+
+                    final look = (value.length / 40.0 * 100.0).clamp(
+                      0.0, 
+                      100.0
+                    );
+                    _numLook?.value = look;
+
+                    _typingDebounce?.cancel();
+
+                    _typingDebounce = Timer(const Duration(seconds: 3), (){
+                      if (!mounted) return;
+                      _isChecking?.change(false);
+                    });
                   },
                   decoration: InputDecoration(
                     hintText: "Email",
@@ -98,6 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 10,),
                 //Password
                 TextField(
+                  focusNode: _passwordFocus,
                   onChanged: (value) {
                     if(_isChecking != null){
                       _isChecking!.change(false);
@@ -132,5 +150,12 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _emailFocus.dispose();
+    _passwordFocus.dispose();
+    super.dispose();
   }
 }
