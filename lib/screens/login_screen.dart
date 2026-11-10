@@ -25,6 +25,52 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailFocus = FocusNode();
   final _passwordFocus = FocusNode();
 
+  final emailCtrl = TextEditingController();
+  final passCtrl = TextEditingController();
+
+  String? emailError;
+  String? passErrror;
+
+   // 4.3 Validadores
+  bool isValidEmail(String email) {
+    final re = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+    return re.hasMatch(email);
+  }
+
+  bool isValidPassword(String pass) {
+    // mínimo 8, una mayúscula, una minúscula, un dígito y un especial
+    final re = RegExp(
+      r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$',
+    );
+    return re.hasMatch(pass);
+  }
+
+  void _onLogin(){
+    final email = emailCtrl.text.trim();
+    final pass = passCtrl.text;
+
+    final emailTypedError = isValidEmail(email) ? null : 'Invalid Email';
+    final passTypedError = isValidPassword(pass) ? null : 'Invalid Password';
+
+    setState(() {
+      emailError = emailTypedError;
+      passErrror = passTypedError;
+    });
+
+    FocusScope.of(context).unfocus();
+    _typingDebounce?.cancel();
+    _isChecking?.change(false);
+    _numLook?.value = 50.0;
+
+    if (emailTypedError == null && passTypedError == null){
+      _trigSuccess?.fire();
+    } else {
+      _trigFail?.fire();
+    }
+
+
+  }
+
 
 @override
   void initState() {
@@ -81,6 +127,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(height: 10,),
                 //Email
                 TextField(
+                  controller: emailCtrl,
                   focusNode: _emailFocus,
                   onChanged: (value) {
                     if(_isHandsUp != null){
@@ -104,6 +151,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     });
                   },
                   decoration: InputDecoration(
+                    errorText: emailError,
                     hintText: "Email",
                     prefixIcon: const Icon(Icons.email),
                     border: OutlineInputBorder(
@@ -115,6 +163,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 10,),
                 //Password
                 TextField(
+                  controller: passCtrl,
                   focusNode: _passwordFocus,
                   onChanged: (value) {
                     if(_isChecking != null){
@@ -126,6 +175,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   },
                   obscureText: _isObscure,
                   decoration: InputDecoration(
+                    errorText: passErrror,
                     hintText: "Password",
                     prefixIcon: const Icon(Icons.lock),
                     suffixIcon: IconButton(
@@ -142,6 +192,50 @@ class _LoginScreenState extends State<LoginScreen> {
                       //Para redondear los bordes
                       borderRadius: BorderRadius.circular(12)
                     )
+                  ),
+                ),
+                const SizedBox(height: 10,),
+                SizedBox(
+                  width: screenSize.width,
+                  child: const Text(
+                    "Forgot password",
+                    textAlign: TextAlign.right,
+                    style: TextStyle(decoration: TextDecoration.underline),
+                  ),
+                ),
+                const SizedBox(height: 10,),
+                MaterialButton(
+                  minWidth: screenSize.width,
+                  height: 50,
+                  color: Colors.purple,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  onPressed: _onLogin,
+                  child: const Text(
+                    "Login",
+                    style: TextStyle(color: Colors.white, fontSize: 18),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: screenSize.width,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text("Don't have an account?"),
+                      TextButton(
+                        onPressed: () {},
+                        child: const Text(
+                          "Register",
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
