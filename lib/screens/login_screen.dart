@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:rive/rive.dart';
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
+
+import 'products_screen.dart';
+import 'signup_screen.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -28,47 +33,105 @@ class _LoginScreenState extends State<LoginScreen> {
   final emailCtrl = TextEditingController();
   final passCtrl = TextEditingController();
 
-  String? emailError;
-  String? passErrror;
+  bool _isLoading = false;
 
-   // 4.3 Validadores
-  bool isValidEmail(String email) {
-    final re = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
-    return re.hasMatch(email);
+  // OWASP A07: en el Login NO se valida complejidad ni se dice qué campo falló.
+  static const String _mensajeGenerico =
+      'Credenciales inválidas. Verifica tu correo y contraseña.';
+
+  void _mostrarErrorGlobal() {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text(_mensajeGenerico),
+          backgroundColor: Colors.red,
+        ),
+      );
   }
 
-  bool isValidPassword(String pass) {
-    // mínimo 8, una mayúscula, una minúscula, un dígito y un especial
-    final re = RegExp(
-      r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$',
-    );
-    return re.hasMatch(pass);
-  }
-
-  void _onLogin(){
+  Future<void> _onLogin() async {
     final email = emailCtrl.text.trim();
     final pass = passCtrl.text;
-
-    final emailTypedError = isValidEmail(email) ? null : 'Invalid Email';
-    final passTypedError = isValidPassword(pass) ? null : 'Invalid Password';
-
-    setState(() {
-      emailError = emailTypedError;
-      passErrror = passTypedError;
-    });
 
     FocusScope.of(context).unfocus();
     _typingDebounce?.cancel();
     _isChecking?.change(false);
+    _isHandsUp?.change(false);
     _numLook?.value = 50.0;
 
-    if (emailTypedError == null && passTypedError == null){
-      _trigSuccess?.fire();
-    } else {
+    // Solo se verifica que los campos no estén vacíos.
+    if (email.isEmpty || pass.isEmpty) {
       _trigFail?.fire();
+      _mostrarErrorGlobal();
+      return;
     }
 
+    setState(() => _isLoading = true);
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: pass,
+      );
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _trigSuccess?.fire();
+      await Future.delayed(const Duration(seconds: 2));
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ProductsScreen()),
+      );
+    } on FirebaseAuthException {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _trigFail?.fire();
+      _mostrarErrorGlobal();
+    }
+  }
 
+  Future<void> _onForgotPassword() async {
+    final resetCtrl = TextEditingController(text: emailCtrl.text.trim());
+    final email = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Recuperar contraseña'),
+        content: TextField(
+          controller: resetCtrl,
+          keyboardType: TextInputType.emailAddress,
+          decoration: const InputDecoration(
+            hintText: 'Correo electrónico',
+            prefixIcon: Icon(Icons.email),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, resetCtrl.text.trim()),
+            child: const Text('Enviar'),
+          ),
+        ],
+      ),
+    );
+    if (email == null || email.isEmpty || !mounted) return;
+
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+    } on FirebaseAuthException {
+      // No revelamos si el correo existe o no (OWASP).
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Si el correo está registrado, recibirás un enlace para '
+          'restablecer tu contraseña. Revisa también spam.',
+        ),
+      ),
+    );
   }
 
 
@@ -151,7 +214,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     });
                   },
                   decoration: InputDecoration(
-                    errorText: emailError,
                     hintText: "Email",
                     prefixIcon: const Icon(Icons.email),
                     border: OutlineInputBorder(
@@ -175,7 +237,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   },
                   obscureText: _isObscure,
                   decoration: InputDecoration(
-                    errorText: passErrror,
                     hintText: "Password",
                     prefixIcon: const Icon(Icons.lock),
                     suffixIcon: IconButton(
@@ -195,12 +256,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 10,),
-                SizedBox(
-                  width: screenSize.width,
-                  child: const Text(
-                    "Forgot password",
-                    textAlign: TextAlign.right,
-                    style: TextStyle(decoration: TextDecoration.underline),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _onForgotPassword,
+                    child: const Text(
+                      "Forgot password?",
+                      style: TextStyle(decoration: TextDecoration.underline),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 10,),
@@ -211,11 +274,20 @@ class _LoginScreenState extends State<LoginScreen> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  onPressed: _onLogin,
-                  child: const Text(
-                    "Login",
-                    style: TextStyle(color: Colors.white, fontSize: 18),
-                  ),
+                  onPressed: _isLoading ? null : _onLogin,
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          "Login",
+                          style: TextStyle(color: Colors.white, fontSize: 18),
+                        ),
                 ),
                 const SizedBox(height: 20),
                 SizedBox(
@@ -225,9 +297,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       const Text("Don't have an account?"),
                       TextButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SignUpScreen(),
+                            ),
+                          );
+                        },
                         child: const Text(
-                          "Register",
+                          "Sign up",
                           style: TextStyle(
                             color: Colors.black,
                             fontWeight: FontWeight.bold,
@@ -248,6 +327,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
+    _typingDebounce?.cancel();
+    emailCtrl.dispose();
+    passCtrl.dispose();
     _emailFocus.dispose();
     _passwordFocus.dispose();
     super.dispose();
