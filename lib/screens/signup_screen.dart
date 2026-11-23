@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../theme.dart';
+
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
 
@@ -35,7 +37,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
       return 'Correo no válido';
     }
-    if (!email.endsWith(dominio)) return 'Usa tu correo institucional ($dominio)';
+    if (!email.endsWith(dominio)) {
+      return 'Usa tu correo institucional ($dominio)';
+    }
     return null;
   }
 
@@ -68,7 +72,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Cuenta creada correctamente. Ahora inicia sesión.'),
-          backgroundColor: Colors.green,
+          backgroundColor: AppColors.green,
         ),
       );
       Navigator.pop(context);
@@ -77,7 +81,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_mensajeError(e.code)),
-          backgroundColor: Colors.red,
+          backgroundColor: const Color(0xFFD84315),
         ),
       );
     } finally {
@@ -107,10 +111,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
         Icon(
           ok ? Icons.check_circle : Icons.radio_button_unchecked,
           size: 18,
-          color: ok ? Colors.green : Colors.grey,
+          color: ok ? AppColors.green : Colors.grey,
         ),
         const SizedBox(width: 6),
-        Text(texto, style: TextStyle(color: ok ? Colors.green : Colors.black54)),
+        Text(
+          texto,
+          style: TextStyle(color: ok ? AppColors.green : Colors.black54),
+        ),
       ],
     );
   }
@@ -120,85 +127,110 @@ class _SignUpScreenState extends State<SignUpScreen> {
       hintText: hint,
       prefixIcon: Icon(icon),
       suffixIcon: suffix,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-
     return Scaffold(
-      appBar: AppBar(title: const Text('Crear cuenta')),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Form(
-            key: _formKey,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextFormField(
-                  controller: emailCtrl,
-                  keyboardType: TextInputType.emailAddress,
-                  validator: _validateEmail,
-                  decoration: _decoration('correo$dominio', Icons.email),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: passCtrl,
-                  obscureText: _isObscure,
-                  validator: _validatePass,
-                  onChanged: (v) => setState(() => _pass = v),
-                  decoration: _decoration(
-                    'Contraseña',
-                    Icons.lock,
-                    suffix: IconButton(
-                      onPressed: () => setState(() => _isObscure = !_isObscure),
-                      icon: Icon(
-                        _isObscure ? Icons.visibility : Icons.visibility_off,
+      appBar: AppBar(title: const Text('Únete a Michi Market')),
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppColors.background),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Form(
+                key: _formKey,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: AppColors.orange,
+                          child: Icon(Icons.pets, color: Colors.white),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Crea tu cuenta con tu correo institucional',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.text,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      controller: emailCtrl,
+                      keyboardType: TextInputType.emailAddress,
+                      validator: _validateEmail,
+                      decoration: _decoration('correo$dominio', Icons.email),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: passCtrl,
+                      obscureText: _isObscure,
+                      validator: _validatePass,
+                      onChanged: (v) => setState(() => _pass = v),
+                      decoration: _decoration(
+                        'Contraseña',
+                        Icons.lock,
+                        suffix: IconButton(
+                          onPressed: () =>
+                              setState(() => _isObscure = !_isObscure),
+                          icon: Icon(
+                            _isObscure
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 8),
+                    _regla(_hasMinLength, 'Mínimo 8 caracteres'),
+                    _regla(_hasUpper, 'Una letra mayúscula'),
+                    _regla(_hasLower, 'Una letra minúscula'),
+                    _regla(_hasDigit, 'Un número'),
+                    _regla(_hasSymbol, 'Un símbolo (!@#\$%...)'),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: confirmCtrl,
+                      obscureText: _isObscure,
+                      validator: _validateConfirm,
+                      decoration: _decoration(
+                        'Confirmar contraseña',
+                        Icons.lock_outline,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    FilledButton.icon(
+                      onPressed: _isLoading ? null : _onSignUp,
+                      icon: _isLoading
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2.5,
+                              ),
+                            )
+                          : const Icon(Icons.person_add_alt_1),
+                      label: const Text('Sign up'),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                _regla(_hasMinLength, 'Mínimo 8 caracteres'),
-                _regla(_hasUpper, 'Una letra mayúscula'),
-                _regla(_hasLower, 'Una letra minúscula'),
-                _regla(_hasDigit, 'Un número'),
-                _regla(_hasSymbol, 'Un símbolo (!@#\$%...)'),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: confirmCtrl,
-                  obscureText: _isObscure,
-                  validator: _validateConfirm,
-                  decoration: _decoration('Confirmar contraseña', Icons.lock_outline),
-                ),
-                const SizedBox(height: 20),
-                MaterialButton(
-                  minWidth: width,
-                  height: 50,
-                  color: Colors.purple,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  onPressed: _isLoading ? null : _onSignUp,
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text(
-                          'Sign up',
-                          style: TextStyle(color: Colors.white, fontSize: 18),
-                        ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
